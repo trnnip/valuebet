@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ValueBet eSoccer Pro | Persistent</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --apple-bg: #f5f5f7;
+            --apple-card: #ffffff;
+            --apple-text: #1d1d1f;
+            --apple-accent: #0071e3;
+            --success: #34c759;
+            --danger: #ff3b30;
+            --secondary: #86868b;
+        }
+
+        body { font-family: 'Inter', sans-serif; background-color: var(--apple-bg); color: var(--apple-text); margin: 0; padding: 20px; }
+        .main-layout { display: grid; grid-template-columns: 350px 1fr; gap: 20px; max-width: 1450px; margin: 0 auto; }
+        header { grid-column: 1 / -1; text-align: center; margin-bottom: 20px; }
+        
+        .card { background: var(--apple-card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); margin-bottom: 20px; }
+        h3 { margin: 0 0 15px 0; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; color: var(--secondary); letter-spacing: 0.05em; border-bottom: 1px solid #f5f5f7; padding-bottom: 8px; }
+
+        .rules-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .rule-item { font-size: 0.8rem; background: #fbfbfd; padding: 10px; border-left: 3px solid var(--apple-accent); border-radius: 4px; }
+
+        label { display: block; margin-bottom: 4px; font-size: 0.75rem; color: var(--secondary); }
+        input { width: 100%; padding: 10px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 0.9rem; margin-bottom: 12px; box-sizing: border-box; background: #fafafa; outline: none; }
+        
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 0.85rem; margin-bottom: 8px; }
+        .btn-blue { background: var(--apple-accent); color: white; }
+        .btn-green { background: var(--success); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--apple-accent); color: var(--apple-accent); }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        th { text-align: left; color: var(--secondary); padding: 10px; border-bottom: 1px solid #f5f5f7; }
+        td { padding: 10px; border-bottom: 1px solid #f5f5f7; }
+
+        .status-btn { padding: 5px 10px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.75rem; font-weight: bold; margin-right: 4px; }
+        .win { background: #eafaf1; color: #27ae60; }
+        .loss { background: #fff5f5; color: #eb5757; }
+
+        #bankrollDisplay { font-size: 2.2rem; font-weight: 700; color: var(--apple-accent); }
+        .history-list { max-height: 100px; overflow-y: auto; font-size: 0.8rem; margin-top: 10px; }
+        .history-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #fafafa; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>eSoccer Value Dashboard</h1>
+</header>
+
+<div class="card" style="max-width: 1400px; margin: 0 auto 20px auto;">
+    <h3>Stratégiai Szabályok (Módosított)</h3>
+    <div class="rules-grid">
+        <div class="rule-item">🎯 <b>Value:</b> Min. +10% különbség szükséges.</div>
+        <div class="rule-item">📉 <b>Min Odds:</b> Niké odds legalább 1.75 legyen.</div>
+        <div class="rule-item">📈 <b>Max Kockázat:</b> Bet365 odds max. 3.00 lehet.</div>
+        <div class="rule-item">🚫 <b>Limit:</b> Egy meccsre csak egy fogadás mehet.</div>
+        <div class="rule-item">💰 <b>Tét:</b> Fix 2.00 EUR per mérkőzés.</div>
+    </div>
+</div>
+
+<div class="main-layout">
+    <div class="sidebar">
+        <div class="card">
+            <h3>Value Kalkulátor</h3>
+            <label>Bet365 Odds (Referencia)</label>
+            <input type="number" id="b365" step="0.01">
+            <label>Niké Odds (Tényleges)</label>
+            <input type="number" id="nike" step="0.01">
+            <button class="btn btn-blue" onclick="checkValue()">Elemzés</button>
+            <div id="calcResult" style="text-align:center; display:none; padding:10px; border-radius:8px; font-size:0.85rem; font-weight:bold;"></div>
+        </div>
+
+        <div class="card">
+            <h3>Fogadás rögzítése</h3>
+            <input type="text" id="t1" placeholder="Hazai játékos">
+            <input type="text" id="t2" placeholder="Vendég játékos">
+            <input type="text" id="tip" placeholder="Tipp">
+            <input type="number" id="fOdds" placeholder="Odds">
+            <input type="number" id="fVal" placeholder="Value %">
+            <button class="btn btn-green" onclick="addBet()">Mehet a naplóba (-2€)</button>
+        </div>
+
+        <div class="card">
+            <h3>Aktuális Bankroll</h3>
+            <div id="bankrollDisplay">100.00 EUR</div>
+            <p style="font-size: 0.7rem; color: var(--secondary); margin-bottom: 15px;">Automata levonás és jóváírás.</p>
+            
+            <button class="btn btn-outline" onclick="exportData()">Mentés fájlba</button>
+            <button class="btn btn-outline" onclick="document.getElementById('importFile').click()">Betöltés fájlból</button>
+            <input type="file" id="importFile" style="display:none" onchange="importData(event)">
+            
+            <div class="history-list" id="brHistory"></div>
+        </div>
+    </div>
+
+    <div class="content">
+        <div class="card">
+            <h3>Teljesítmény Görbe</h3>
+            <div class="chart-container"><canvas id="bankrollChart"></canvas></div>
+        </div>
+        <div class="card">
+            <h3>Fogadási Napló</h3>
+            <table>
+                <thead>
+                    <tr><th>Mérkőzés</th><th>Tipp</th><th>Odds</th><th>Value</th><th>Eredmény</th><th>Művelet</th></tr>
+                </thead>
+                <tbody id="betBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const FIX_STAKE = 2.00;
+    let currentBankroll = parseFloat(localStorage.getItem('currentBR')) || 100.00;
+    let bankrollHistory = JSON.parse(localStorage.getItem('brHistory')) || [{date: 'Start', value: 100.00}];
+    let bets = JSON.parse(localStorage.getItem('bets')) || [];
+
+    const ctx = document.getElementById('bankrollChart').getContext('2d');
+    let myChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: bankrollHistory.map(h => h.date),
+            datasets: [{
+                label: 'EUR',
+                data: bankrollHistory.map(h => h.value),
+                borderColor: '#0071e3',
+                tension: 0.3,
+                fill: true,
+                backgroundColor: 'rgba(0, 113, 227, 0.05)'
+            }]
+        },
+        options: { responsive: true, aspectRatio: 2.2, plugins: { legend: { display: false } } }
+    });
+
+    function checkValue() {
+        const b = parseFloat(document.getElementById('b365').value);
+        const n = parseFloat(document.getElementById('nike').value);
+        const res = document.getElementById('calcResult');
+        if (b > 1 && n > 1) {
+            const v = ((n/b)-1)*100;
+            res.style.display = "block";
+            
+            // ÚJ LOGIKA: Bet365 odds korlát
+            let ok = v >= 10 && n >= 1.75 && b <= 3.00;
+            
+            let msg = `Value: ${v.toFixed(2)}%<br>`;
+            if (v < 10) msg += "🛑 KEVÉS VALUE ";
+            if (n < 1.75) msg += "🛑 ALACSONY NIKÉ ODDS ";
+            if (b > 3.00) msg += "🛑 MAGAS B365 ODDS (>3.00) ";
+            
+            res.innerHTML = ok ? msg + "✅ MEHET A BET!" : msg;
+            res.style.backgroundColor = ok ? "#eafaf1" : "#fff5f5";
+            res.style.color = ok ? "#27ae60" : "#eb5757";
+            
+            document.getElementById('fOdds').value = n;
+            document.getElementById('fVal').value = v.toFixed(2);
+        }
+    }
+
+    function updateUI() {
+        document.getElementById('bankrollDisplay').innerText = currentBankroll.toFixed(2) + " EUR";
+        const tbody = document.getElementById('betBody');
+        tbody.innerHTML = '';
+        bets.forEach((bet, i) => {
+            const row = tbody.insertRow();
+            if(bet.status === 'win') row.style.backgroundColor = "#eafaf1";
+            if(bet.status === 'loss') row.style.backgroundColor = "#fff5f5";
+            row.innerHTML = `<td>${bet.match}</td><td>${bet.tip}</td><td>${bet.odds}</td><td>${bet.val}%</td><td><button class="status-btn win" onclick="markBet(${i}, 'win')">✓</button><button class="status-btn loss" onclick="markBet(${i}, 'loss')">✗</button></td><td><button style="background:none; border:none; color:#ff3b30; cursor:pointer;" onclick="deleteBet(${i})">Törlés</button></td>`;
+        });
+        myChart.data.labels = bankrollHistory.map(h => h.date);
+        myChart.data.datasets[0].data = bankrollHistory.map(h => h.value);
+        myChart.update();
+        localStorage.setItem('currentBR', currentBankroll);
+        localStorage.setItem('brHistory', JSON.stringify(bankrollHistory));
+        localStorage.setItem('bets', JSON.stringify(bets));
+    }
+
+    function addBet() {
+        const t1 = document.getElementById('t1').value, odds = parseFloat(document.getElementById('fOdds').value);
+        if(!t1 || isNaN(odds)) return;
+        currentBankroll -= FIX_STAKE;
+        bets.unshift({match: t1 + ' - ' + document.getElementById('t2').value, tip: document.getElementById('tip').value, odds: odds, val: document.getElementById('fVal').value, status: 'pending', stake: FIX_STAKE});
+        const today = new Date().toISOString().slice(0,10);
+        if(bankrollHistory[bankrollHistory.length-1].date !== today) bankrollHistory.push({date: today, value: currentBankroll});
+        else bankrollHistory[bankrollHistory.length-1].value = currentBankroll;
+        ['t1','t2','tip','fOdds','fVal','b365','nike'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('calcResult').style.display = 'none';
+        updateUI();
+    }
+
+    function markBet(i, status) {
+        const bet = bets[i];
+        if(bet.status === status) return;
+        if(bet.status === 'win') currentBankroll -= (bet.odds * bet.stake);
+        bet.status = status;
+        if(status === 'win') currentBankroll += (bet.odds * bet.stake);
+        bankrollHistory[bankrollHistory.length-1].value = currentBankroll;
+        updateUI();
+    }
+
+    function deleteBet(i) {
+        const bet = bets[i];
+        if(bet.status === 'pending') currentBankroll += bet.stake;
+        else if(bet.status === 'win') currentBankroll -= (bet.odds * bet.stake - bet.stake);
+        else if(bet.status === 'loss') currentBankroll += bet.stake;
+        bets.splice(i, 1);
+        bankrollHistory[bankrollHistory.length-1].value = currentBankroll;
+        updateUI();
+    }
+
+    function exportData() {
+        const data = { bankrollHistory, bets, currentBankroll };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `ValueBet_Backup_${new Date().toISOString().slice(0,10)}.json`;
+        a.click();
+    }
+
+    function importData(event) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const data = JSON.parse(e.target.result);
+            bankrollHistory = data.bankrollHistory; bets = data.bets; currentBankroll = data.currentBankroll || 100.00;
+            updateUI();
+        };
+        reader.readAsText(event.target.files[0]);
+    }
+    updateUI();
+</script>
+</body>
+</html>
